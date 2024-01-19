@@ -12,7 +12,7 @@ conn = psycopg2.connect(
     port=5432,
     user='postgres',
     password=env('DBPASS'),
-    database='ecommerce'
+    database=env('DATABASE')
 )
 
 # Create a cursor object to execute SQL commands
@@ -40,13 +40,14 @@ CREATE TABLE IF NOT EXISTS customers (
 )
 ''')
 
-# Orders table
+# Orders table - updated to include price
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     customer_id INTEGER REFERENCES customers(id),
     product_id INTEGER REFERENCES products(id),
     quantity INTEGER NOT NULL,
+    order_price DECIMAL NOT NULL,
     order_date DATE NOT NULL
 )
 ''')
@@ -55,8 +56,9 @@ CREATE TABLE IF NOT EXISTS orders (
 print("Inserting sample products...")
 product_names = ['Product {}'.format(i) for i in range(1, 11)]
 for name in product_names:
+    price = random.uniform(10, 100)
     cursor.execute("INSERT INTO products (name, price, stock_quantity) VALUES (%s, %s, %s)",
-                   (name, random.uniform(10, 100), random.randint(10, 50)))
+                   (name, price, random.randint(10, 50)))
 
 # Insert sample data into customers
 print("Inserting sample customers...")
@@ -70,16 +72,17 @@ for name in customer_names:
 print("Generating random orders...")
 cursor.execute("SELECT id FROM customers")
 customer_ids = [row[0] for row in cursor.fetchall()]
-cursor.execute("SELECT id FROM products")
-product_ids = [row[0] for row in cursor.fetchall()]
+cursor.execute("SELECT id, price FROM products")
+products = cursor.fetchall()
 
 for customer_id in customer_ids:
     for _ in range(random.randint(1, 5)):  # Each customer makes 1 to 5 orders
-        product_id = random.choice(product_ids)
+        product_id, price = random.choice(products)
         quantity = random.randint(1, 3)
+        order_price = price * quantity
         order_date = '2023-' + str(random.randint(1, 12)).zfill(2) + '-' + str(random.randint(1, 28)).zfill(2)
-        cursor.execute("INSERT INTO orders (customer_id, product_id, quantity, order_date) VALUES (%s, %s, %s, %s)",
-                       (customer_id, product_id, quantity, order_date))
+        cursor.execute("INSERT INTO orders (customer_id, product_id, quantity, order_price, order_date) VALUES (%s, %s, %s, %s, %s)",
+                       (customer_id, product_id, quantity, order_price, order_date))
 
 # Commit the changes and close the connection
 conn.commit()
