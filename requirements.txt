@@ -1,0 +1,6 @@
+langchain
+langchain-experimental
+langchain-openai
+openai
+python-environ
+psycopg2
